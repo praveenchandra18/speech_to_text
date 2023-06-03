@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Recorder</title>
+    <script src="https://cdn.rawgit.com/mattdiamond/Recorderjs/08e7abd9/dist/recorder.js"></script>
+</head>
+<body>
+    <h1>Voice Recorder</h1>
+    <button id="recordButton" onclick="toggleRecording()">Start Recording</button>
+    <button id="stopButton" onclick="stopRecording()" disabled>Stop Recording</button>
+    <button id="sendButton" onclick="sendRecording()" disabled>Send Recording</button>
+    <br>
+    <audio id="audioPlayer" controls></audio>
+
+    <script>
+        var audioPlayer = document.getElementById('audioPlayer');
+        var recordButton = document.getElementById('recordButton');
+        var stopButton = document.getElementById('stopButton');
+        var sendButton = document.getElementById('sendButton');
+        var audioStream;
+        var recorder;
+
+        function toggleRecording() {
+            if (!recorder) {
+                startRecording();
+                recordButton.innerHTML = 'Recording...';
+                stopButton.disabled = false;
+                sendButton.disabled = true;
+            } else {
+                stopRecording();
+                recordButton.innerHTML = 'Start Recording';
+                stopButton.disabled = true;
+                sendButton.disabled = false;
+            }
+        }
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    audioStream = stream;
+                    var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    var input = audioContext.createMediaStreamSource(stream);
+                    recorder = new Recorder(input);
+                    recorder.record();
+                })
+                .catch(function(error) {
+                    console.log('Error accessing microphone:', error);
+                });
+        }
+
+        function stopRecording() {
+            if (recorder) {
+                recorder.stop();
+                recorder.exportWAV(function(blob) {
+                    audioPlayer.src = URL.createObjectURL(blob);
+                    sendButton.disabled = false; // Enable the send button when a recording is available
+                });
+                recorder.clear();
+                recorder = null;
+                audioStream.getTracks().forEach(function(track) {
+                    track.stop();
+                });
+            }
+        }
+
+        function sendRecording() {
+            if (audioPlayer.src) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/text', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                console.log('Recording sent successfully!');
+            } else {
+                console.log('Failed to send recording.');
+            }
+        };
+        xhr.onerror = function() {
+            console.log('Error occurred while sending recording.');
+        };
+        var formData = new FormData();
+        formData.append('audio', audioPlayer.src);
+        xhr.send(formData);
+            }
+        }
+    </script>
+</body>
+</html>
